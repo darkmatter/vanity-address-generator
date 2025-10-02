@@ -1,0 +1,98 @@
+name: Publish Checksums
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish-checksums:
+    name: Publish Checksums Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get latest release
+        id: release
+        run: |
+          LATEST_TAG=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
+          LATEST_DATE=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .published_at)
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "date=$LATEST_DATE" >> $GITHUB_OUTPUT
+          
+          # Download CHECKSUMS.txt
+          curl -L -o CHECKSUMS.txt \
+            "https://github.com/${{ github.repository }}/releases/download/${LATEST_TAG}/CHECKSUMS.txt" || echo "No checksums file found"
+
+      - name: Create checksums documentation
+        run: |
+          mkdir -p docs
+          
+          cat > docs/CHECKSUMS.md << 'EOFMD'
+          # SHA-256 Checksums
+          
+          EOFMD
+          
+          echo "## Latest Release: ${{ steps.release.outputs.tag }}" >> docs/CHECKSUMS.md
+          echo "" >> docs/CHECKSUMS.md
+          echo "**Published:** ${{ steps.release.outputs.date }}" >> docs/CHECKSUMS.md
+          echo "" >> docs/CHECKSUMS.md
+          echo "## Download" >> docs/CHECKSUMS.md
+          echo "" >> docs/CHECKSUMS.md
+          echo "- [Latest Release](https://github.com/${{ github.repository }}/releases/latest)" >> docs/CHECKSUMS.md
+          echo "- [Download CHECKSUMS.txt](https://github.com/${{ github.repository }}/releases/latest/download/CHECKSUMS.txt)" >> docs/CHECKSUMS.md
+          echo "" >> docs/CHECKSUMS.md
+          echo "## Verification" >> docs/CHECKSUMS.md
+          echo "" >> docs/CHECKSUMS.md
+          echo "After downloading a binary, verify its integrity:" >> docs/CHECKSUMS.md
+          echo "" >> docs/CHECKSUMS.md
+          echo '```bash' >> docs/CHECKSUMS.md
+          echo "shasum -a 256 vanity-eth" >> docs/CHECKSUMS.md
+          echo "# Compare the output with the checksums below" >> docs/CHECKSUMS.md
+          echo '```' >> docs/CHECKSUMS.md
+          echo "" >> docs/CHECKSUMS.md
+          echo "## SHA-256 Checksums" >> docs/CHECKSUMS.md
+          echo "" >> docs/CHECKSUMS.md
+          echo '```' >> docs/CHECKSUMS.md
+          
+          if [ -f CHECKSUMS.txt ]; then
+            cat CHECKSUMS.txt >> docs/CHECKSUMS.md
+          fi
+          
+          echo '```' >> docs/CHECKSUMS.md
+          
+          echo "" >> docs/CHECKSUMS.md
+          echo "---" >> docs/CHECKSUMS.md
+          echo "*Generated automatically by GitHub Actions*" >> docs/CHECKSUMS.md
+
+      - name: Create release summary
+        run: |
+          echo "## ✅ Checksums Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release:** ${{ steps.release.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** ${{ steps.release.outputs.date }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📥 Downloads" >> $GITHUB_STEP_SUMMARY
+          echo "- [Latest Release](https://github.com/${{ github.repository }}/releases/latest)" >> $GITHUB_STEP_SUMMARY
+          echo "- [CHECKSUMS.txt](https://github.com/${{ github.repository }}/releases/latest/download/CHECKSUMS.txt)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f CHECKSUMS.txt ]; then
+            echo "### 📋 Checksums Preview" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            head -n 40 CHECKSUMS.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload checksums as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksums-${{ steps.release.outputs.tag }}
+          path: |
+            CHECKSUMS.txt
+            docs/CHECKSUMS.md

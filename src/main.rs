@@ -1,5 +1,5 @@
 use rand::RngCore;
-use bip39::{Language, Mnemonic};
+use bip39::Mnemonic;
 use clap::{Parser, ValueEnum};
 use coins_bip32::{path::DerivationPath, prelude::*, xkeys::Parent};
 use hex::ToHex;

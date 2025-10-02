@@ -1,0 +1,288 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            use_cross: true
+            
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            use_cross: true
+            
+          - target: x86_64-pc-windows-gnu
+            os: ubuntu-latest
+            use_cross: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: Install cross
+        if: matrix.use_cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build binary
+        run: |
+          if [ "${{ matrix.use_cross }}" = "true" ]; then
+            cross build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+
+      - name: Package binary and generate checksums
+        shell: bash
+        run: |
+          TARGET="${{ matrix.target }}"
+          VERSION="${GITHUB_REF#refs/tags/}"
+          if [[ ! "$VERSION" =~ ^v ]]; then
+            VERSION="dev"
+          fi
+          
+          if [[ "$TARGET" == *"windows"* ]]; then
+            BINARY_NAME="vanity-eth.exe"
+            ARCHIVE_NAME="vanity-eth-${VERSION}-${TARGET}.zip"
+          else
+            BINARY_NAME="vanity-eth"
+            ARCHIVE_NAME="vanity-eth-${VERSION}-${TARGET}.tar.gz"
+          fi
+          
+          cd target/$TARGET/release
+          
+          # Create archive
+          if [[ "$TARGET" == *"windows"* ]]; then
+            7z a "$ARCHIVE_NAME" "$BINARY_NAME"
+          else
+            tar czf "$ARCHIVE_NAME" "$BINARY_NAME"
+          fi
+          
+          # Generate checksums for both binary and archive
+          if command -v shasum &> /dev/null; then
+            shasum -a 256 "$BINARY_NAME" > "${BINARY_NAME}.sha256"
+            shasum -a 256 "$ARCHIVE_NAME" > "${ARCHIVE_NAME}.sha256"
+            BINARY_CHECKSUM=$(shasum -a 256 "$BINARY_NAME" | awk '{print $1}')
+            ARCHIVE_CHECKSUM=$(shasum -a 256 "$ARCHIVE_NAME" | awk '{print $1}')
+          else
+            sha256sum "$BINARY_NAME" > "${BINARY_NAME}.sha256"
+            sha256sum "$ARCHIVE_NAME" > "${ARCHIVE_NAME}.sha256"
+            BINARY_CHECKSUM=$(sha256sum "$BINARY_NAME" | awk '{print $1}')
+            ARCHIVE_CHECKSUM=$(sha256sum "$ARCHIVE_NAME" | awk '{print $1}')
+          fi
+          
+          # Create checksum info file
+          cat > checksums.txt << EOF
+          # Vanity Ethereum Address Generator
+          # Target: $TARGET
+          # Version: $VERSION
+          # Build Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          ## Binary Checksum
+          $BINARY_CHECKSUM  $BINARY_NAME
+          
+          ## Archive Checksum
+          $ARCHIVE_CHECKSUM  $ARCHIVE_NAME
+          EOF
+          
+          echo "BINARY_CHECKSUM=$BINARY_CHECKSUM" >> $GITHUB_ENV
+          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
+          
+          ls -lah
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vanity-eth-${{ matrix.target }}
+          path: |
+            target/${{ matrix.target }}/release/*.tar.gz
+            target/${{ matrix.target }}/release/*.zip
+            target/${{ matrix.target }}/release/*.sha256
+            target/${{ matrix.target }}/release/checksums.txt
+
+  checksums:
+    name: Generate Master Checksums
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate master checksums file
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          if [[ ! "$VERSION" =~ ^v ]]; then
+            VERSION="dev-${GITHUB_SHA::7}"
+          fi
+          
+          cat > CHECKSUMS.txt << 'EOF'
+          # ========================================
+          # Vanity Ethereum Address Generator
+          # SHA-256 Checksums
+          # ========================================
+          
+          EOF
+          
+          echo "Version: $VERSION" >> CHECKSUMS.txt
+          echo "Build Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> CHECKSUMS.txt
+          echo "Commit: ${GITHUB_SHA}" >> CHECKSUMS.txt
+          echo "" >> CHECKSUMS.txt
+          echo "## Binary Checksums" >> CHECKSUMS.txt
+          echo "" >> CHECKSUMS.txt
+          
+          # Collect all checksums
+          for dir in artifacts/*/; do
+            if [ -f "${dir}checksums.txt" ]; then
+              cat "${dir}checksums.txt" >> CHECKSUMS.txt
+              echo "" >> CHECKSUMS.txt
+            fi
+          done
+          
+          echo "## Archive Checksums" >> CHECKSUMS.txt
+          echo "" >> CHECKSUMS.txt
+          
+          # Generate checksums for archives
+          find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) | sort | while read file; do
+            filename=$(basename "$file")
+            if command -v shasum &> /dev/null; then
+              checksum=$(shasum -a 256 "$file" | awk '{print $1}')
+            else
+              checksum=$(sha256sum "$file" | awk '{print $1}')
+            fi
+            echo "$checksum  $filename" >> CHECKSUMS.txt
+          done
+          
+          echo "" >> CHECKSUMS.txt
+          echo "## Verification" >> CHECKSUMS.txt
+          echo "" >> CHECKSUMS.txt
+          echo "To verify a downloaded binary:" >> CHECKSUMS.txt
+          echo '```bash' >> CHECKSUMS.txt
+          echo "shasum -a 256 vanity-eth" >> CHECKSUMS.txt
+          echo "# Compare output with the checksum above" >> CHECKSUMS.txt
+          echo '```' >> CHECKSUMS.txt
+          
+          echo "" >> CHECKSUMS.txt
+          echo "To verify a downloaded archive:" >> CHECKSUMS.txt
+          echo '```bash' >> CHECKSUMS.txt
+          echo "shasum -a 256 vanity-eth-*.tar.gz" >> CHECKSUMS.txt
+          echo "# or" >> CHECKSUMS.txt
+          echo "sha256sum vanity-eth-*.zip" >> CHECKSUMS.txt
+          echo '```' >> CHECKSUMS.txt
+          
+          cat CHECKSUMS.txt
+          
+      - name: Upload checksums artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksums
+          path: CHECKSUMS.txt
+
+  release:
+    name: Create Release
+    needs: [build, checksums]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          
+          # Copy all archives
+          find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) -exec cp {} release-assets/ \;
+          
+          # Copy master checksums
+          if [ -f artifacts/checksums/CHECKSUMS.txt ]; then
+            cp artifacts/checksums/CHECKSUMS.txt release-assets/
+          fi
+          
+          # Copy individual checksum files
+          find artifacts -type f -name "*.sha256" -exec cp {} release-assets/ \;
+          
+          ls -lah release-assets/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release-assets/*
+          draft: false
+          prerelease: false
+          body: |
+            ## Downloads
+            
+            Download the binary for your platform:
+            
+            - **macOS (Intel)**: `vanity-eth-${{ github.ref_name }}-x86_64-apple-darwin.tar.gz`
+            - **macOS (Apple Silicon)**: `vanity-eth-${{ github.ref_name }}-aarch64-apple-darwin.tar.gz`
+            - **Linux (x86_64)**: `vanity-eth-${{ github.ref_name }}-x86_64-unknown-linux-gnu.tar.gz`
+            - **Linux (ARM64)**: `vanity-eth-${{ github.ref_name }}-aarch64-unknown-linux-gnu.tar.gz`
+            - **Windows (x86_64)**: `vanity-eth-${{ github.ref_name }}-x86_64-pc-windows-gnu.zip`
+            
+            ## Verification
+            
+            Verify your download using the `CHECKSUMS.txt` file:
+            
+            ```bash
+            # Download the checksums file
+            curl -LO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/CHECKSUMS.txt
+            
+            # Verify your downloaded archive
+            shasum -a 256 vanity-eth-*.tar.gz
+            # Compare with CHECKSUMS.txt
+            ```
+            
+            ## Installation
+            
+            ### macOS / Linux
+            ```bash
+            tar xzf vanity-eth-*.tar.gz
+            chmod +x vanity-eth
+            ./vanity-eth --help
+            ```
+            
+            ### Windows
+            ```bash
+            unzip vanity-eth-*.zip
+            vanity-eth.exe --help
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
