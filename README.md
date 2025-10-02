@@ -149,7 +149,7 @@ This approach is more efficient than checking random keys because each mnemonic 
 
 ## Performance
 
-The generator uses all available CPU cores by default and can process hundreds of thousands of addresses per second on modern hardware. By checking 10 addresses per mnemonic (default), you effectively 10x your search efficiency.
+The generator uses all available CPU cores by default and can process hundreds of thousands of addresses per second on modern hardware. 
 
 The actual time to find a match depends on the pattern length:
 
