@@ -23,6 +23,7 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
+          components: clippy, rustfmt
 
       - name: Run tests
         run: cargo test --verbose
@@ -42,7 +43,7 @@ jobs:
         include:
           - target: x86_64-apple-darwin
             os: macos-latest
-            
+
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             use_cross: true
@@ -77,9 +78,9 @@ jobs:
           else
             BINARY="target/${{ matrix.target }}/release/vanity-eth"
           fi
-          
+
           # Test that binary runs
           $BINARY --help
-          
+
           # Quick test (should fail immediately with invalid pattern)
           $BINARY "g" 2>&1 | grep -q "pattern must be a valid hex string" || true

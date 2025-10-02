@@ -30,13 +30,13 @@ Binaries will be in the `releases/` directory with a `checksums.txt` file.
 
 ## Supported Platforms
 
-| Platform | Target Triple | Notes |
-|----------|---------------|-------|
-| macOS Intel | `x86_64-apple-darwin` | Requires macOS to build |
-| macOS Apple Silicon | `aarch64-apple-darwin` | Requires macOS to build |
-| Linux x86_64 | `x86_64-unknown-linux-gnu` | Can cross-compile |
-| Linux ARM64 | `aarch64-unknown-linux-gnu` | Requires `cross` |
-| Windows x86_64 | `x86_64-pc-windows-gnu` | Requires `cross` |
+| Platform            | Target Triple               | Notes                   |
+| ------------------- | --------------------------- | ----------------------- |
+| macOS Intel         | `x86_64-apple-darwin`       | Requires macOS to build |
+| macOS Apple Silicon | `aarch64-apple-darwin`      | Requires macOS to build |
+| Linux x86_64        | `x86_64-unknown-linux-gnu`  | Can cross-compile       |
+| Linux ARM64         | `aarch64-unknown-linux-gnu` | Requires `cross`        |
+| Windows x86_64      | `x86_64-pc-windows-gnu`     | Requires `cross`        |
 
 ## Build Methods
 

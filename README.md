@@ -69,7 +69,7 @@ make windows      # Windows x86_64
 
 ### Binary Checksum
 
-**Release Binary:** `target/release/vanity-eth`  
+**Release Binary:** `target/release/vanity-eth`
 **SHA-256:** `35ec5dce77e89c1c11041da4b8992447912482510187cf1bb618de9e7002b632`
 
 Verify the checksum:
@@ -124,16 +124,16 @@ Search for addresses with specific endings:
 
 ## Command-Line Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `pattern` | Hex prefix to match (without 0x) | Required unless `--suffix` provided |
-| `--suffix` | Hex suffix to match (without 0x) | Required unless `pattern` provided |
-| `--mode` | Matching mode: `lower` or `checksum` | `lower` |
-| `--threads` | Number of parallel workers | Number of CPUs |
-| `--derivation-path` | HD derivation path | `m/44'/60'/0'/0` |
-| `--addresses-per-mnemonic` | Number of addresses to check per mnemonic | `10` |
-| `--progress` | Show progress updates | `false` |
-| `--progress-interval` | Progress update interval (seconds) | `5` |
+| Option                     | Description                               | Default                             |
+| -------------------------- | ----------------------------------------- | ----------------------------------- |
+| `pattern`                  | Hex prefix to match (without 0x)          | Required unless `--suffix` provided |
+| `--suffix`                 | Hex suffix to match (without 0x)          | Required unless `pattern` provided  |
+| `--mode`                   | Matching mode: `lower` or `checksum`      | `lower`                             |
+| `--threads`                | Number of parallel workers                | Number of CPUs                      |
+| `--derivation-path`        | HD derivation path                        | `m/44'/60'/0'/0`                    |
+| `--addresses-per-mnemonic` | Number of addresses to check per mnemonic | `10`                                |
+| `--progress`               | Show progress updates                     | `false`                             |
+| `--progress-interval`      | Progress update interval (seconds)        | `5`                                 |
 
 ## How It Works
 

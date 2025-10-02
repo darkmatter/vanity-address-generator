@@ -19,7 +19,7 @@ make all-targets
 make linux          # Linux x86_64
 make linux-arm      # Linux ARM64
 make macos-intel    # macOS Intel
-make macos-arm      # macOS Apple Silicon  
+make macos-arm      # macOS Apple Silicon
 make windows        # Windows x86_64
 
 # View all commands

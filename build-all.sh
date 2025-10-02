@@ -45,7 +45,7 @@ fi
 # Build for each target
 for TARGET in "${TARGETS[@]}"; do
     echo -e "${BLUE}Building for $TARGET...${NC}"
-    
+
     # Check if target is installed (only needed for cargo, cross handles this automatically)
     if [ "$BUILD_CMD" = "cargo" ]; then
         if ! rustup target list | grep -q "^$TARGET (installed)"; then
@@ -53,7 +53,7 @@ for TARGET in "${TARGETS[@]}"; do
             rustup target add "$TARGET" || echo "Warning: Could not add target $TARGET"
         fi
     fi
-    
+
     # Build
     if $BUILD_CMD build --release --target "$TARGET"; then
         # Determine binary name
@@ -62,21 +62,21 @@ for TARGET in "${TARGETS[@]}"; do
         else
             BINARY_NAME="vanity-eth"
         fi
-        
+
         SOURCE_PATH="target/$TARGET/release/$BINARY_NAME"
         DEST_NAME="vanity-eth-$TARGET"
-        
+
         if [[ "$TARGET" == *"windows"* ]]; then
             DEST_NAME="$DEST_NAME.exe"
         fi
-        
+
         DEST_PATH="$RELEASE_DIR/$DEST_NAME"
-        
+
         # Copy binary to releases directory
         if [ -f "$SOURCE_PATH" ]; then
             cp "$SOURCE_PATH" "$DEST_PATH"
             echo -e "${GREEN}✓ Built: $DEST_NAME${NC}"
-            
+
             # Generate checksum
             if command -v shasum &> /dev/null; then
                 CHECKSUM=$(shasum -a 256 "$DEST_PATH" | cut -d' ' -f1)
@@ -85,7 +85,7 @@ for TARGET in "${TARGETS[@]}"; do
             else
                 CHECKSUM="N/A"
             fi
-            
+
             echo "  SHA-256: $CHECKSUM"
             echo "$CHECKSUM  $DEST_NAME" >> "$RELEASE_DIR/checksums.txt"
         else
@@ -94,7 +94,7 @@ for TARGET in "${TARGETS[@]}"; do
     else
         echo -e "  Warning: Build failed for $TARGET"
     fi
-    
+
     echo ""
 done
 
