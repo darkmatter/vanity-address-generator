@@ -14,6 +14,8 @@ A high-performance Ethereum vanity address generator written in Rust that search
 
 ## Installation
 
+Binaries are available but it is recommended to build from source to avoid phishing attacks
+
 ### From Source
 
 ```bash
