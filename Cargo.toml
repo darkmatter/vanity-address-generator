@@ -1,0 +1,17 @@
+[package]
+name = "vanity-eth"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+k256 = { version = "0.13", features = ["ecdsa"] }
+rand = "0.8"
+sha3 = "0.10"
+hex = "0.4"
+rayon = "1.10"
+clap = { version = "4.5", features = ["derive"] }
+zeroize = "1.8"
+bip39 = { version = "2.0", features = ["zeroize"] }
+coins-bip32 = "0.11"
+hmac = "0.12"
+sha2 = "0.10"
